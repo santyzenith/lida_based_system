@@ -44,8 +44,6 @@ The dataset summary is:
 {summary}
 """
 
-        EACH CODE SNIPPET MUST BE A FULL PROGRAM (IT MUST IMPORT ALL THE LIBRARIES THAT ARE USED AND MUST CONTAIN plot(data) method). IT MUST FOLLOW THE STRUCTURE BELOW AND ONLY MODIFY THE INDICATED SECTIONS. \n\n {library_template} \n\n.
-
 def get_viz_recommender_user_prompt(prog_lang="python",
                                     viz_lib="seaborn",
                                     lang="spanish"):

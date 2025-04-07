@@ -121,3 +121,18 @@ def summarize_properties_to_df(properties_list):
         rows.append(row)
     
     return pd.DataFrame(rows)
+    
+
+def clean_code_snippet(code_string):
+    # Extract code snippet using regex
+    cleaned_snippet = re.search(r'```(?:\w+)?\s*([\s\S]*?)\s*```', code_string)
+
+    if cleaned_snippet:
+        cleaned_snippet = cleaned_snippet.group(1)
+    else:
+        cleaned_snippet = code_string
+
+    # remove non-printable characters
+    # cleaned_snippet = re.sub(r'[\x00-\x1F]+', ' ', cleaned_snippet)
+
+    return cleaned_snippet

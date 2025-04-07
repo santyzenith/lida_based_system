@@ -1,4 +1,4 @@
-import json
+import json_repair
 import pandas as pd
 import warnings
 from . import component_utils, llm_utils, utils
@@ -124,9 +124,9 @@ class Summarizer():
         enriched_summary = llm_utils.get_llm_answer(client, model, messages, guided_json=json_schema)
         
         try:
-            return json.loads(enriched_summary)
-        except json.decoder.JSONDecodeError:
-            print(f"Error al decodificar JSON: {enriched_summary}")
+            return json_repair.repair_json(enriched_summary, ensure_ascii=False, return_objects=True)
+        except Exception as e:
+            print(f"Error: {e}")
             raise ValueError(f"Respuesta inválida del modelo: {enriched_summary}")
             
     def summarize(self, 
@@ -180,4 +180,4 @@ class Summarizer():
                     field['properties']['llm_description'] = "-"
                     field['properties']['llm_semantic_type'] = "-"
 
-        return base_summary
+        return data, base_summary, llm_summary

@@ -1,4 +1,4 @@
-import json
+import json_repair
 from pydantic import BaseModel
 from typing import List
 from . import component_utils, llm_utils, utils
@@ -41,8 +41,26 @@ class GoalExplorer():
                                              guided_json=json_schema)
         
         try:
-            return json.loads(llm_goals)
-        except json.decoder.JSONDecodeError:
-            print(f"Error al decodificar JSON: {llm_goals}")
+            return json_repair.repair_json(llm_goals, ensure_ascii=False, return_objects=True)
+        except Exception as e:
+            print(f"Error: {e}")
             raise ValueError(f"Respuesta inválida del modelo: {llm_goals}")
+
+    def generate_from_user_prompt(self,
+                                  prompt):
+        """
+        Generar un objetivo a partir de un prompt
+        """
+
+        return {
+            "goals":[
+                {
+                    "index": 0,
+                    "question": prompt,
+                    "visualization": "'Useful visualization selecting correct columns provided in summary'",
+                    "rationale": "-"      
+                }
+
+            ]
+        }
             

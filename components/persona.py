@@ -1,54 +1,43 @@
-import json
-import logging
-from lidi_lida.utils import clean_code_snippet
-from lidi_lida.llmx_base_textgen import TextGenerator
-from lidi_lida.datamodel import Persona, TextGenerationConfig
+import json_repair
+from pydantic import BaseModel
+from typing import Any, Dict, List, Optional, Union
+from . import component_utils, llm_utils, utils
 
 
-system_prompt = """You are an experienced data analyst who can take a dataset summary and generate a list of n personas (e.g., ceo or accountant for finance related data, economist for population or gdp related data, doctors for health data, or just users) that might be critical stakeholders in exploring some data and describe rationale for why they are critical. The personas should be prioritized based on their relevance to the data. Think step by step and answer in spanish.
+class Persona(BaseModel):
+    persona: str
+    rationale: str
 
-Your response should be perfect JSON in the following format and must be in spanish:
-```[{"persona": "persona1", "rationale": "..."},{"persona": "persona1", "rationale": "..."}]```
-"""
-
-logger = logging.getLogger("lida")
-
+class DataPersona(BaseModel):
+    personas: List[Persona]
 
 class PersonaExplorer():
     """Generate personas given a summary of data"""
-    """Generar personas a partir de un resumen de datos"""
 
-    def __init__(self) -> None:
+    def __init__(self):
         pass
 
-    def generate(self, summary: dict, textgen_config: TextGenerationConfig,
-                 text_gen: TextGenerator, n=5) -> list[Persona]:
+    def generate(self, 
+                 summary, 
+                 config,
+                 client, 
+                 n=3):
         """Generate personas given a summary of data"""
-        """Generar personas a partir de un resumen de datos"""
-
-        user_prompt = f"""The number of PERSONAs to generate is {n}. Generate {n} personas in the right format given the data summary below,\n .
-        {summary} \n""" + """
-
-        .
-        """
+        
+        json_schema = DataPersona.model_json_schema()
 
         messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "assistant", "content": user_prompt},
+            {"role": "system", "content": component_utils.get_persona_sys_prompt()},
+            {"role": "user", "content": component_utils.get_persona_user_prompt(n, summary)}
         ]
-
-        result = text_gen.generate(messages=messages, config=textgen_config)
+        
+        llm_personas = llm_utils.get_llm_answer(client, 
+                                                config["dynamic_config"]["dynamic_model_name"], 
+                                                messages, 
+                                                guided_json=json_schema)
 
         try:
-            json_string = clean_code_snippet(result.text[0]["content"])
-            result = json.loads(json_string)
-            # cast each item in the list to a Goal object
-            if isinstance(result, dict):
-                result = [result]
-            result = [Persona(**x) for x in result]
-        except json.decoder.JSONDecodeError:
-            logger.info(f"Error decoding JSON: {result.text[0]['content']}")
-            print(f"Error decoding JSON: {result.text[0]['content']}")
-            raise ValueError(
-                "The model did not return a valid JSON object while attempting generate personas.  Consider using a larger model or a model with higher max token length.")
-        return result
+            return json_repair.repair_json(llm_personas, ensure_ascii=False, return_objects=True)
+        except Exception as e:
+            print(f"Error: {e}")
+            raise ValueError("The model did not return a valid JSON object while attempting generate personas.  Consider using a larger model or a model with higher max token length.")

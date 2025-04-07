@@ -33,20 +33,20 @@ def get_llm_answer(client, model, messages, guided_json=None):
     Realiza la petición al proveedor y devuelve la respuesta
     del llm
     """
-    
     answer = client.chat.completions.create(
         model=model,
         messages=messages,
-        temperature=0.6,
+        temperature=1.0,
         extra_body={
             'repetition_penalty': 1,
-            'top_p': 1,
+            'top_p': 0.95,
             #'frequency_penalty': 0,
             #'presence_penalty': 0,
-            #'top_k': 0,
+            'top_k': 64,
+            'min_p': 0.0,
             #'do_sample': True,
             #'seed':42,
-            'max_tokens': 3072,
+            'max_tokens': 4096,
             'guided_json': guided_json
         })
     

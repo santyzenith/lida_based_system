@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 import pandas as pd
-from components import component_utils, llm_utils, utils
+from components import component_utils, llm_utils, utils, sql_generator
 from components.summarizer import Summarizer
 from components.persona import PersonaExplorer
 from components.goal import GoalExplorer
@@ -12,6 +12,7 @@ from components.viz_editor import VizEditor
 from PIL import Image
 import io
 import base64
+import tempfile
 
 # Configuración inicial
 st.set_page_config(
@@ -42,7 +43,7 @@ with st.container():
     )
 
 st.write("# Generación automática de visualizaciones utilizando LLMs 📊")
-st.sidebar.write("# Configuración")
+st.sidebar.write("# Configuración para datos CSV")
 
 # Cargar configuración y cliente LLM
 my_config = utils.load_config()
@@ -525,3 +526,85 @@ if st.session_state.llm_summ:
                             st.error(st.session_state.charts[0].error["message"])
                             st.session_state.do_repair = False
                             st.rerun()
+
+
+
+# Sidebar
+st.sidebar.write("# Generador de Ordenes en SQL")
+
+# Configuración del sidebar
+if my_config:
+    with st.sidebar.expander("## Configuración del LLM", expanded=False):
+        st.write("### Modelo de Generación de Texto")
+        selected_model = st.selectbox(
+            '¿Qué LLM vas a utilizar?',
+            options=["OpenRouter"],  # Aquí puedes agregar otros modelos si lo deseas
+            index=0,
+            placeholder="Selecciona un LLM..."
+        )
+
+        # Cargar el cliente Llama o el modelo según la configuración
+        my_config, my_client = llm_utils.load_llm_client(my_config, provider="OpenRouter")
+
+        st.write("### Base de Datos")
+        db_file = st.file_uploader(
+            "Sube tu base de datos en formato .db", type=["db"], key="sql_db_uploader"
+        )
+
+        if db_file is not None:
+            st.success("Base de datos cargada con éxito.")
+            
+            # Guardar temporalmente el archivo en disco
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as temp_file:
+                temp_file.write(db_file.getbuffer())
+                temp_db_path = temp_file.name  # Path del archivo temporal
+
+# Botón para iniciar la generación de SQL
+if st.sidebar.button("Empezar a Generar SQL"):
+    st.session_state["start_sql_gen"] = True
+
+
+# Mostrar interfaz si se presionó el botón y hay archivo
+if st.session_state.get("start_sql_gen", False) and db_file is not None:
+
+    st.header("🔍 Generación de Consultas SQL")
+
+    # --- Variables a usar ---
+    conn, cursor = sql_generator.conectar_db(temp_db_path)  # Usar el path temporal
+    esquema = sql_generator.obtener_esquema(cursor)
+    orden_lenguaje_natural = ""
+    orden_sql_generada = ""
+
+    # Mostrar esquema (zona no editable)
+    st.write("### Esquema de la Base de Datos")
+    st.text_area("Esquema", value=esquema, height=200, disabled=True)
+
+    # Ingreso de orden en lenguaje natural (editable)
+    orden_lenguaje_natural = st.text_area("### Orden en Lenguaje Natural", "")
+
+    # Botón para generar la consulta SQL
+    # Botón para generar la consulta SQL
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        gen_sql_btt = st.button("Generar SQL")
+    with col2:
+        ejecutar_sql_checkbox = st.checkbox("Ejecutar consulta", key="ejecutar_sql")
+
+    if gen_sql_btt and orden_lenguaje_natural.strip():
+        with st.spinner("Generando consulta SQL..."):
+            orden_sql_generada = sql_generator.generar_sql(orden_lenguaje_natural, cursor)
+
+
+        st.text_area("### Respuesta del Modelo", value=orden_sql_generada, height=200, disabled=True)
+
+        if st.session_state.get("ejecutar_sql", False) and orden_sql_generada.strip():
+            try:
+                cursor.execute(orden_sql_generada)
+                resultados = cursor.fetchall()
+                columnas = [desc[0] for desc in cursor.description]
+                df_resultados = pd.DataFrame(resultados, columns=columnas)
+                st.write("### Resultado de la Consulta")
+                st.dataframe(df_resultados)
+            except Exception as e:
+                st.error(f"Error al ejecutar la consulta: {e}")
+

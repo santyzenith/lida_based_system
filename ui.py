@@ -529,21 +529,19 @@ if st.session_state.llm_summ:
 
 
 
-# Sidebar
+#Generador de Ordenes en SQL en SliderBar
 st.sidebar.write("# Generador de Ordenes en SQL")
 
-# Configuración del sidebar
 if my_config:
     with st.sidebar.expander("## Configuración del LLM", expanded=False):
         st.write("### Modelo de Generación de Texto")
         selected_model = st.selectbox(
             '¿Qué LLM vas a utilizar?',
-            options=["OpenRouter"],  # Aquí puedes agregar otros modelos si lo deseas
+            options=["OpenRouter"], 
             index=0,
             placeholder="Selecciona un LLM..."
         )
 
-        # Cargar el cliente Llama o el modelo según la configuración
         my_config, my_client = llm_utils.load_llm_client(my_config, provider="OpenRouter")
 
         st.write("### Base de Datos")
@@ -559,12 +557,11 @@ if my_config:
                 temp_file.write(db_file.getbuffer())
                 temp_db_path = temp_file.name  # Path del archivo temporal
 
-# Botón para iniciar la generación de SQL
+
 if st.sidebar.button("Empezar a Generar SQL"):
     st.session_state["start_sql_gen"] = True
 
 
-# Mostrar interfaz si se presionó el botón y hay archivo
 if st.session_state.get("start_sql_gen", False) and db_file is not None:
 
     st.header("🔍 Generación de Consultas SQL")
@@ -582,8 +579,7 @@ if st.session_state.get("start_sql_gen", False) and db_file is not None:
     # Ingreso de orden en lenguaje natural (editable)
     orden_lenguaje_natural = st.text_area("### Orden en Lenguaje Natural", "")
 
-    # Botón para generar la consulta SQL
-    # Botón para generar la consulta SQL
+
     col1, col2 = st.columns([1, 1])
     with col1:
         gen_sql_btt = st.button("Generar SQL")

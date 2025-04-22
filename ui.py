@@ -20,9 +20,6 @@ st.set_page_config(
     layout="wide"
 )
 
-import streamlit as st
-import base64
-
 # Función para convertir imagen a base64
 def get_base64_image(file_path):
     with open(file_path, "rb") as image_file:
@@ -30,18 +27,21 @@ def get_base64_image(file_path):
 
 # Ruta de tu logo
 logo_path = "images/logo.png"
+logo_lidi_path = "images/logo_lidi_blanco.png"
 logo_base64 = get_base64_image(logo_path)
+logo_lidi_base64 = get_base64_image(logo_lidi_path)
 
 # Contenedor con fondo azul y logo
 with st.container():
     st.markdown(
-        f'<div style="background-color: #0070B4; padding: 10px; border-radius: 5px; text-align: center;">'
-        f'<img src="data:image/png;base64,{logo_base64}" width="200">'
+        f'<div style="background-color: #0070B4; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">'
+        f'<img src="data:image/png;base64,{logo_base64}" style="width: 20%; max-width: 200px;">'
+        f'<img src="data:image/png;base64,{logo_lidi_base64}" style="width: 15%; max-width: 200px;">'
         f'</div>',
         unsafe_allow_html=True
     )
 
-st.write("# Generación automática de visualizaciones utilizando LLMs 📊")
+st.write("# Recomendador Inteligente de Visualización de Datos 📊")
 st.sidebar.write("# Configuración")
 
 # Cargar configuración y cliente LLM
@@ -86,6 +86,13 @@ if "show_edit_input" not in st.session_state:
     st.session_state.show_edit_input = False
 if "do_repair" not in st.session_state:
     st.session_state.do_repair = False
+
+
+if "persona_selected_container_pressed" not in st.session_state:
+    st.session_state.persona_selected_container_pressed = False
+
+if "goal_selected_container_pressed" not in st.session_state:
+    st.session_state.goal_selected_container_pressed = False
 
 # Configuración del sidebar
 if my_config:
@@ -194,7 +201,7 @@ if my_config:
 
 # Mostrar resumen si existe
 if st.session_state.llm_summ:
-    st.write("## Resumen")
+    st.write("## Conjunto de Datos (Dataset)")
     if "llm_desc" in st.session_state.llm_summ:
         st.write(st.session_state.llm_summ["llm_desc"])
     if "fields" in st.session_state.llm_summ:
@@ -203,20 +210,24 @@ if st.session_state.llm_summ:
     else:
         st.write(str(st.session_state.llm_summ))
 
+    # Estado para autogenerar personas
+    if "auto_triggered_personas" not in st.session_state:
+        st.session_state.auto_triggered_personas = False
+
     # Personas
     st.sidebar.write("### Personas interesadas en los datos")
     personas_radio = st.sidebar.radio(
         "¿Cómo definir a las personas interesadas en los datos?",
         ["Por defecto", "Generadas (LLM)", "Personalizada"],
-        index=0,
+        index=1,
         horizontal=True,
     )
-
+    st.write("## ¿Quién eres?")
     if personas_radio == "Por defecto":
         default_persona = "Un analista de datos muy capacitado capaz de plantear objetivos complejos y precisos sobre los datos."
         with st.container(height=400, border=True):
-            st.write("Persona por defecto")
-            st.write("----------------------")
+            #st.write("Persona por defecto")
+            #st.write("----------------------")
             st.write(f"*{default_persona}*")
             if st.button("Seleccionar", key="per_def"):
                 st.session_state.selected_persona = default_persona
@@ -226,30 +237,53 @@ if st.session_state.llm_summ:
                 st.session_state.charts = None
                 st.session_state.goals_with_code = None
 
+            if st.session_state.selected_persona == default_persona:
+                st.badge(f"Persona actual: {st.session_state.selected_persona}", icon=":material/check:", color="green")
+
     elif personas_radio == "Generadas (LLM)":
-        num_personas = st.sidebar.slider("Número de personas a generar", min_value=1, max_value=3, value=1)
-        gen_personas_button = st.sidebar.button("Generar Personas")
+        st.session_state.persona_selected_container_pressed = False
+        num_personas = st.sidebar.slider("Número de personas a generar", min_value=1, max_value=3, value=3)
+
+        # Auto-trigger si no se ha hecho
+        if not st.session_state.auto_triggered_personas:
+            st.session_state.auto_triggered_personas = True
+            gen_personas_button = True  # simular clic automático
+        else:
+            gen_personas_button = st.sidebar.button("Generar Personas")
+        
         if gen_personas_button:
             per = PersonaExplorer()
             with st.spinner("Por favor espere... Generando posibles personas interesadas..."):
                 st.session_state.llm_personas = per.generate(st.session_state.llm_summ, my_config, my_client, n=num_personas)
+                
         if st.session_state.llm_personas:
             personas_row1 = st.columns(3)
             for idx, col in enumerate(personas_row1[:num_personas]):
                 if idx < len(st.session_state.llm_personas['personas']):
                     persona_data = st.session_state.llm_personas['personas'][idx]
                     with col.container(height=400, border=True):
-                        st.write("Persona generada (LLM)")
+                        #st.write("Persona generada (LLM)")
                         st.write(f"*{persona_data['persona']}*")
-                        st.write("----------------------")
-                        st.write(f"*{persona_data['rationale']}*")
                         if st.button("Seleccionar", key=f"per_btn_{idx}"):
                             st.session_state.selected_persona = persona_data['persona']
+                            st.session_state.persona_selected_container_pressed = True
                             st.session_state.selected_goal = None
                             st.session_state.llm_goals = None
                             st.session_state.user_goal_input = ""
                             st.session_state.charts = None
                             st.session_state.goals_with_code = None
+
+                        #elif st.session_state.selected_persona == persona_data['persona'] and 
+                            
+                        if st.session_state.selected_persona == persona_data['persona'] and st.session_state.persona_selected_container_pressed:
+                            st.badge(f"Persona actual: {st.session_state.selected_persona}", icon=":material/check:", color="green")
+                            st.session_state.persona_selected_container_pressed = False
+                            
+                        st.write("----------------------")
+                        st.write(f"*{persona_data['rationale']}*")
+                        
+                        
+        #gen_personas_button = False
 
     elif personas_radio == "Personalizada":
         if "user_persona_input" not in st.session_state:
@@ -262,8 +296,8 @@ if st.session_state.llm_summ:
         if st.sidebar.button("Agregar persona", key="ag_per_btn") and persona_input:
             st.session_state.user_persona_input = persona_input
         with st.container(height=400, border=True):
-            st.write("Persona personalizada")
-            st.write("----------------------")
+            #st.write("Persona personalizada")
+            #st.write("----------------------")
             st.write(f"*{st.session_state.user_persona_input}*")
             if st.button("Seleccionar", key="per_user") and st.session_state.user_persona_input:
                 st.session_state.selected_persona = st.session_state.user_persona_input
@@ -272,18 +306,27 @@ if st.session_state.llm_summ:
                 st.session_state.user_goal_input = ""
                 st.session_state.charts = None
                 st.session_state.goals_with_code = None
+                
+            if st.session_state.selected_persona == default_persona:
+                st.badge(f"Persona actual: {st.session_state.selected_persona}", icon=":material/check:", color="green")
 
     if st.session_state.selected_persona:
+        pass
         #st.write(f"Persona actual: *{st.session_state.selected_persona}*")
-        st.badge(f"Persona actual: {st.session_state.selected_persona}", icon=":material/check:", color="green")
+        #st.badge(f"Persona actual: {st.session_state.selected_persona}", icon=":material/check:", color="green")
 
     # Objetivos
+    # Estado para autogenerar objetivos
+    if "auto_triggered_goals" not in st.session_state:
+        st.session_state.auto_triggered_goals = False
+        
     if st.session_state.selected_persona:
+        st.write("## ¿Cuál es tu objetivo?")
         st.sidebar.write("### Objetivos (Goals)")
         goals_radio = st.sidebar.radio(
             "¿Cómo definir los objetivos (goals) de visualización?",
             ["Manualmente", "Generados (LLM)"],
-            index=0,
+            index=1,
             horizontal=True,
         )
 
@@ -292,8 +335,8 @@ if st.session_state.llm_summ:
             if st.sidebar.button("Agregar objetivo", key="ag_obj_btn") and usr_goal_input:
                 st.session_state.user_goal_input = usr_goal_input
             with st.container(height=400, border=True):
-                st.write("Objetivo de visualización")
-                st.write("----------------------")
+                #st.write("Objetivo de visualización")
+                #st.write("----------------------")
                 st.write(f"*{st.session_state.user_goal_input}*")
                 if st.button("Seleccionar", key="user_goal_viz") and st.session_state.user_goal_input:
                     goal = GoalExplorer()
@@ -301,9 +344,20 @@ if st.session_state.llm_summ:
                     st.session_state.charts = None
                     st.session_state.goals_with_code = None
 
+                if st.session_state.selected_goal == st.session_state.user_goal_input:
+                    st.badge(f"Objetivo actual: {st.session_state.selected_goal['goals'][0]['question']}", icon=":material/check:", color="green")
+
         elif goals_radio == "Generados (LLM)":
+            st.session_state.goal_selected_container_pressed = False
             num_goals = st.sidebar.slider("Número de objetivos (goals) a generar", min_value=1, max_value=3, value=3)
-            gen_goals_button = st.sidebar.button("Generar objetivos (goals)")
+            
+            # Auto-trigger si no se ha hecho
+            if not st.session_state.auto_triggered_goals:
+                st.session_state.auto_triggered_goals = True
+                gen_goals_button = True
+            else:
+                gen_goals_button = st.sidebar.button("Generar objetivos (goals)")
+        
             if gen_goals_button:
                 goal = GoalExplorer()
                 with st.spinner("Por favor espere... Generando objetivos (goals) de visualización..."):
@@ -314,26 +368,45 @@ if st.session_state.llm_summ:
                     if idx < len(st.session_state.llm_goals['goals']):
                         goal_data = st.session_state.llm_goals['goals'][idx]
                         with col.container(height=400, border=True):
-                            st.write("Objetivo de visualización generado (LLM)")
+                            #st.write("Objetivo de visualización generado (LLM)")
                             st.write(goal_data['question'])
+                            if st.button("Seleccionar", key=f"gen_goal_viz_{idx}"):
+                                st.session_state.selected_goal = {"goals": [goal_data]}
+                                st.session_state.goal_selected_container_pressed = True
+                                st.session_state.charts = None
+                                st.session_state.goals_with_code = None
+
+
+                            if st.session_state.selected_goal == {"goals": [goal_data]} and st.session_state.goal_selected_container_pressed:
+                                st.badge(f"Objetivo actual: {st.session_state.selected_goal['goals'][0]['question']}", icon=":material/check:", color="green")
+                                st.session_state.goal_selected_container_pressed = False
+
+                                #st.session_state.auto_triggered_goals = False
                             st.write("----------------------")
                             st.write(f"*{goal_data['visualization']}*")
                             st.write("----------------------")
                             st.write(f"*{goal_data['rationale']}*")
-                            if st.button("Seleccionar", key=f"gen_goal_viz_{idx}"):
-                                st.session_state.selected_goal = {"goals": [goal_data]}
-                                st.session_state.charts = None
-                                st.session_state.goals_with_code = None
 
         if st.session_state.selected_goal:
+            pass
             #st.write(f"Objetivo actual: *{st.session_state.selected_goal['goals'][0]['question']}*")
-            st.badge(f"Objetivo actual: {st.session_state.selected_goal['goals'][0]['question']}", icon=":material/check:", color="green")
+            #st.badge(f"Objetivo actual: {st.session_state.selected_goal['goals'][0]['question']}", icon=":material/check:", color="green")
 
         # Visualizaciones
+        # Estado para autogenerar visualizaciones
+        if "auto_triggered_viz" not in st.session_state:
+            st.session_state.auto_triggered_viz = False
+        
         if st.session_state.selected_goal:
             st.write("## Visualizaciones")
             st.info('Asegúrese de seleccionar y verificar el objetivo de visualización', icon="ℹ️")
-            gen_viz_button = st.button("Generar Visualización")
+            
+            # Auto-trigger si no se ha hecho
+            if not st.session_state.auto_triggered_viz:
+                st.session_state.auto_triggered_viz = True
+                gen_viz_button = True
+            else:
+                gen_viz_button = st.button("Generar Visualización")
             
             if gen_viz_button:
                 with st.spinner("Por favor espere... Generando la visualización..."):
@@ -361,6 +434,8 @@ if st.session_state.llm_summ:
                 st.session_state.repair_code = None
                 st.session_state.show_edit_input = False
                 st.session_state.do_repair = False
+
+                #st.session_state.auto_triggered_viz = False
             
             # Reintento para Generar Visualización
             if st.session_state.charts and not st.session_state.charts[0].status and "Timeout" in st.session_state.charts[0].error["message"]:

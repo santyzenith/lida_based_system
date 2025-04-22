@@ -105,7 +105,7 @@ Add a legend with distinct colors where suitable. Use only existing and exact da
 #     return f"""For single-value solutions (e.g., max, min, median), add a line (axvline/axhline) with a legend showing the value (formatted 0.2f). For date fields (semantic_type=date), apply: i) pd.to_datetime(data[<field>], errors='coerce'), ii) drop NaT rows with data = data[pd.notna(data[<field>])], iii) adjust to proper time format for plotting. Ensure legible x-axis labels (e.g., rotate if needed). Use BaseMap for maps and avoid nbformat-based visuals. Create a {viz_lib} chart ({goal_vis}) for this goal: {goal_que}. Assume data is loaded in variable 'data'. Exclude {viz_lib} show() and return a {viz_lib} figure object."""
 
 def get_scaffold_general_instructions(goal_que, goal_vis, viz_lib="seaborn"):
-    return f"""For single-value solutions (e.g., max, min, median), add a line (axvline/axhline) with a legend showing the value (formatted 0.2f). For date fields (semantic_type=date), apply: i) pd.to_datetime(data[<field>], errors='coerce'), ii) drop NaT rows with data = data[pd.notna(data[<field>])], iii) adjust to proper time format for plotting. Ensure legible x-axis labels (e.g., rotate if needed). Use BaseMap for maps and avoid nbformat-based visuals. Create a {viz_lib} chart ({goal_vis}) for this goal: {goal_que}. Assume data is loaded in variable 'data'. Exclude {viz_lib} show() and return a {viz_lib} figure object. When creating histograms (i.e., if goal_vis is 'histogram'), always specify a fixed number of bins (e.g., bins=30)."""
+    return f"""For single-value solutions (e.g., max, min, median), add a line (axvline/axhline) with a legend showing the value (formatted 0.2f). For date fields (semantic_type=date), apply: i) pd.to_datetime(data[<field>], errors='coerce'), ii) drop NaT rows with data = data[pd.notna(data[<field>])], iii) adjust to proper time format for plotting. Ensure legible x-axis labels (e.g., rotate if needed). Use BaseMap for maps and avoid nbformat-based visuals. Create a {viz_lib} chart ({goal_vis}) for this goal: {goal_que}. DO NOT WRITE ANY CODE TO LOAD THE DATA. Assume data is loaded in variable 'data'. Exclude {viz_lib} show() and return a {viz_lib} figure object. When creating histograms (i.e., if goal_vis is 'histogram'), always specify a fixed number of bins (e.g., bins=30)."""
 
 
 # def get_viz_repairer_sys_prompt(summary, 
@@ -133,6 +133,7 @@ def get_viz_repairer_user_prompt(bad_code,
 The error message is: {error_message}.\n
 The error traceback is: {error_traceback}.\n
 Always check if column names in the code are the same in data summary provided.
+DO NOT WRITE ANY CODE TO LOAD THE DATA. Assume data is loaded in variable 'data'.
 """
 
 

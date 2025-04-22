@@ -24,15 +24,18 @@ class Summarizer():
         """
         
         if "float" in str(dtype):
-            return float(value)
+            #return float(value)
+            return f"{float(value):.2f}"
+            
             
         elif "int" in str(dtype):
-            return int(value)
+            #return int(value)
+            return f"{int(value):.2f}"
             
         else:
             return value
 
-    def get_column_properties(self, df, n_samples=2):
+    def get_column_properties(self, df, n_samples=5):
         """
         Obtener las propiedades de cada columna en un DataFrame pandas
         """
@@ -133,7 +136,7 @@ class Summarizer():
                   data,
                   config, 
                   client,
-                  n_samples=2, 
+                  n_samples=5, 
                   summary_method="default", 
                   encoding="utf-8"):
         """

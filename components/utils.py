@@ -103,19 +103,35 @@ def summarize_properties_to_df(properties_list):
         properties = item["properties"]
         
         # Extraer valores, asegurando que existan en properties
+        # row = {
+        #     "column": column_name,
+        #     "dtype": properties.get("dtype", ""),
+        #     "mean": properties.get("mean", None),
+        #     "std": properties.get("std", None),
+        #     "min": properties.get("min", None),
+        #     "max": properties.get("max", None),
+        #     "samples": ", ".join(map(str, properties.get("samples", []))),  # Convertir lista a string
+        #     "num_unique_values": properties.get("num_unique_values", None),
+        #     "na_count": properties.get("na_count", None),
+        #     "non_na_count": properties.get("non_na_count", None),
+        #     "llm_description": properties.get("llm_description", None),
+        #     "llm_semantic_type": properties.get("llm_semantic_type", None),
+        # }
+        
         row = {
-            "column": column_name,
-            "dtype": properties.get("dtype", ""),
-            "mean": properties.get("mean", None),
-            "std": properties.get("std", None),
+            "columna": column_name,
+            "tipo": properties.get("dtype", ""),
+            "promedio": properties.get("mean", None),
+            "desv. est.": properties.get("std", None),
             "min": properties.get("min", None),
             "max": properties.get("max", None),
-            "samples": ", ".join(map(str, properties.get("samples", []))),  # Convertir lista a string
-            "num_unique_values": properties.get("num_unique_values", None),
-            "na_count": properties.get("na_count", None),
-            "non_na_count": properties.get("non_na_count", None),
-            "llm_description": properties.get("llm_description", None),
-            "llm_semantic_type": properties.get("llm_semantic_type", None),
+            #"observaciones": ", ".join(map(str, properties.get("samples", []))),  # Convertir lista a string
+            "observaciones": str(properties.get("samples", [])),
+            "num_valores_unicos": properties.get("num_unique_values", None),
+            "conteo_nulos": properties.get("na_count", None),
+            "conteo_no_nulos": properties.get("non_na_count", None),
+            "descripcion_columna": properties.get("llm_description", None),
+            "palabra_clave": properties.get("llm_semantic_type", None),
         }
         
         rows.append(row)

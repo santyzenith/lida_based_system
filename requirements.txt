@@ -11,3 +11,8 @@ seaborn==0.13.2
 streamlit==1.44.0
 toml==0.10.2
 uvicorn==0.34.0
+duckdb==1.2.2
+transformers==4.51.3
+torchaudio==2.7.0
+accelerate==1.6.0
+nemo-toolkit==2.2.1

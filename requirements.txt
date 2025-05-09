@@ -15,4 +15,5 @@ duckdb==1.2.2
 transformers==4.51.3
 torchaudio==2.7.0
 accelerate==1.6.0
-nemo-toolkit==2.2.1
+soundfile==0.13.1
+#nemo-toolkit==2.2.1

@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 import pandas as pd
-from components import component_utils, llm_utils, utils
+from components import component_utils, llm_utils, utils, sql_generator
 from components.summarizer import Summarizer
 from components.persona import PersonaExplorer
 from components.goal import GoalExplorer
@@ -9,9 +9,11 @@ from components.viz_generator import VizGenerator
 from components.executor import ChartExecutor
 from components.viz_repairer import VizRepairer
 from components.viz_editor import VizEditor
+from components.speech_recog import transcribe_audio, select_ASRModel
 from PIL import Image
 import io
 import base64
+import tempfile
 
 # Configuración inicial
 st.set_page_config(
@@ -86,6 +88,20 @@ if "show_edit_input" not in st.session_state:
     st.session_state.show_edit_input = False
 if "do_repair" not in st.session_state:
     st.session_state.do_repair = False
+if "start_recording" not in st.session_state:
+    st.session_state.start_recording = False
+if "audio_ready_transcript" not in st.session_state:
+    st.session_state.audio_ready_transcript = False
+if "audio_value" not in st.session_state:
+    st.session_state.audio_value = None
+if "my_config" not in st.session_state:
+    st.session_state["my_config"] = None
+if st.session_state["my_config"] is None:
+    my_config = sql_generator.cargar_config() 
+    st.session_state["my_config"] = my_config
+else:
+    my_config = st.session_state['my_config']
+
 
 # Configuración del sidebar
 if my_config:
@@ -94,6 +110,7 @@ if my_config:
         vllm_model = "vLLM-" + my_config["vllm_config"]["vllm_model_name"]
         openrouter_model = "openRouter-" + my_config["openrouter_config"]["openrouter_model_name"]
         models = ["vllm", "openrouter"]
+        asr_models = ["openai/whisper-large-v3-turbo", "distil-whisper/distil-large-v2", "openai/whisper-tiny"]
         selected_model = st.selectbox(
             '¿Qué LLM vas a utilizar?',
             options=models,
@@ -118,6 +135,21 @@ if my_config:
             options=visualization_libraries,
             index=0
         )
+
+        st.write("### Modelo de transcripción de voz")
+        selected_asr_model = st.selectbox(
+            'Selecciona un modelo ASR',
+            options=asr_models,
+            index=0
+        )
+
+        if 'prev_asr_model' not in st.session_state:
+            st.session_state.prev_asr_model = selected_asr_model
+          
+
+        if selected_asr_model != st.session_state.prev_asr_model:
+            select_ASRModel(selected_asr_model)  
+            st.session_state.prev_asr_model = selected_asr_model 
 
     # Selección de dataset
     st.sidebar.write("## Resumen de Datos")
@@ -386,16 +418,46 @@ if st.session_state.llm_summ:
                     # st.pyplot(st.session_state.charts[0].figure, clear_figure=True)
                     # st.caption(st.session_state.goals_with_code['goals'][0]['question'])
                     
-                    if st.button("Editar", key="edit_chart_btn"):
-                        st.session_state.show_edit_input = True
+                    col1, col2 = st.columns([1, 1])
+
+                    with col1:
+                        if st.button("Editar", key="edit_chart_btn"):
+                            st.session_state.show_edit_input = True
+
+                    with col2:
+                        if not st.session_state.start_recording:
+                            if (st.button("🎙️", key="start_recording_btn")):
+                                st.session_state.start_recording = True
+                                st.rerun()
+                            
+                        else:
+                            audio = st.audio_input("Graba los nuevos objetivos")
+                            if audio:
+                                st.session_state.show_edit_input = True
+                                st.session_state.start_recording = False
+                                st.session_state.audio_ready_transcript = True
+                                st.session_state.audio_value = audio
+                                st.rerun()
                     
                     if st.session_state.show_edit_input:
-                        edited_code_input = st.text_input(
-                            "Instrucciones para la edición del gráfico",
-                            value="",
-                            placeholder="E.g: Utiliza colores pasteles...",
-                            key="edit_viz_input"
+
+                        if not (st.session_state.audio_ready_transcript):
+                            edited_code_input = st.text_input(
+                                "Instrucciones para la edición del gráfico",
+                                value="",
+                                placeholder="E.g: Utiliza colores pasteles...",
+                                key="edit_viz_input"
                         )
+                        else:
+                            edited_code_input = st.text_input(
+                                "Instrucciones para la edición del gráfico",
+                                value=transcribe_audio(st.session_state.audio_value),
+                                placeholder="E.g: Utiliza colores pasteles...",
+                                key="edit_viz_input"
+                                
+                            )
+                            st.session_state.audio_ready_transcript = False
+            
                         if st.button("Aplicar cambios", key="apply_edit_btn"):
                             st.session_state.edit_prompt = edited_code_input
                             with st.spinner("Por favor espere... Aplicando cambios a la visualización..."):
@@ -525,3 +587,60 @@ if st.session_state.llm_summ:
                             st.error(st.session_state.charts[0].error["message"])
                             st.session_state.do_repair = False
                             st.rerun()
+
+# Generador SQL
+    st.sidebar.write("### Generador SQL para extracción de datos")
+    my_config, my_client = llm_utils.load_llm_client(my_config, provider="OpenRouter")
+
+    db_file = selected_dataset
+    temp_db_path = None
+
+    if db_file is not None:
+        if isinstance(db_file, str):
+      
+            file_extension = os.path.splitext(db_file)[-1]
+            with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
+                with open(db_file, "rb") as original_file:
+                    temp_file.write(original_file.read())
+                temp_db_path = temp_file.name
+
+        elif hasattr(db_file, "name") and hasattr(db_file, "getbuffer"):
+   
+            file_extension = "." + db_file.name.split(".")[-1]
+            with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
+                temp_file.write(db_file.getbuffer())
+                temp_db_path = temp_file.name
+
+        else:
+            st.error("Formato de archivo no reconocido.")
+
+
+    conn = sql_generator.conectar_db()
+
+
+    if temp_db_path:
+        sql_generator.cargar_archivo(temp_db_path, conn)
+        esquema = sql_generator.obtener_esquema(conn)
+
+        orden_lenguaje_natural = st.sidebar.text_input(
+            label="¿Quiere obtener unos datos concretos? ¿Cuáles?",
+            placeholder="E.g.: Solo necesito empresas cuyo tamaño sea grande"
+        )
+        orden_sql_generada = ""
+
+        if st.sidebar.button("Extraer datos"):
+            with st.spinner("Generando consulta SQL..."):
+                orden_sql_generada = sql_generator.generar_sql(orden_lenguaje_natural, conn)
+
+            st.text_area("### Respuesta del Modelo", value=orden_sql_generada, height=200, disabled=True)
+
+            try:
+                resultados = conn.sql(orden_sql_generada).fetchall()
+                columnas = [col[0] for col in conn.sql(orden_sql_generada).description]
+                df_resultados = pd.DataFrame(resultados, columns=columnas)
+                st.write("### Resultado de la Consulta")
+                st.dataframe(df_resultados)
+            except Exception as e:
+                st.error(f"Error al ejecutar la consulta: {e}")
+    else:
+        st.warning("Por favor, selecciona o sube un archivo antes de continuar.")
